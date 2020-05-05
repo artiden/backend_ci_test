@@ -122,7 +122,7 @@ $system_path = '../system';
  *
  * NO TRAILING SLASH!
  */
-$application_folder = '/var/www/test_task/application';
+$application_folder = '/home/vagrant/bidding/application';
 
 /*
  *---------------------------------------------------------------

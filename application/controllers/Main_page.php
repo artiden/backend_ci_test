@@ -83,24 +83,30 @@ class Main_page extends MY_Controller
         return $this->response_success(['post' => $posts]);
     }
 
-
-    public function login($user_id)
+    public function login()
     {
-        // Right now for tests:
-        $post_id = intval($user_id);
+        $email = $this->input->get('email');
+        $password = $this->input->get('password');
 
-        if (empty($post_id)){
-            return $this->response_error(CI_Core::RESPONSE_GENERIC_WRONG_PARAMS);
+        if (is_null($email) || is_null($password)) {
+            return $this->response_error(CI_Core::RESPONSE_GENERIC_REQUIRED_DATA_NOT_PROVIDED);
         }
 
-        // But data from modal window sent by POST request.  App::get_ci()->input...  to get it.
+        try {
+            /**
+             * @var User_model $user
+             */
+            $user = User_model::login($email, $password);
+        } catch (Exception $e) {
+            return $this->response_error($e->getMessage());
+        }
 
+        $userId = $user->get_id();
+        Login_model::start_session($userId);
 
-        //Todo: Authorisation
-
-        Login_model::start_session($user_id);
-
-        return $this->response_success(['user' => $user_id]);
+        return $this->response_success([
+            'user' => $userId,
+        ]);
     }
 
 

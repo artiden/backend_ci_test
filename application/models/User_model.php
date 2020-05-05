@@ -345,6 +345,33 @@ class User_model extends CI_Emerald_Model {
     }
 
     /**
+     * Get user by credentials
+     * 
+     * @param string $email
+     * @param string $password
+     * @throws Exception
+     * @return self|NULL
+     */
+    public static function login(string $email, string $password): ?self
+    {
+        //todo: exception выделить в отдельные классы. Например: InvalidEmailFormatException & InvalidCredentiasException...
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception('Invalid email format');
+        }
+
+        $data = App::get_ci()->s->from(self::CLASS_TABLE)
+        ->where('email', $email)
+        ->where('password', $password)
+        ->one();
+
+        if (empty($data)) {
+            throw new Exception('Invalid email or password');
+        }
+
+        return (new self())->set($data);
+    }
+
+    /**
      * @return bool
      */
     public static function is_logged()

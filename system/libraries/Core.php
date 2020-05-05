@@ -35,6 +35,7 @@ class CI_Core {
     const RESPONSE_GENERIC_TRY_LATER = 'try_later'; // action was done before. 2nd time dont need to ask :)
     const RESPONSE_GENERIC_NO_DATA = 'no_data'; // нет данных по данному запросу . Пусто или че ? тоже самое что и сверху
     const RESPONSE_GENERIC_SHOULD_WAIT = 'should_wait'; // Действие с задержкой - повторный запрос отправить позже
+    const RESPONSE_GENERIC_REQUIRED_DATA_NOT_PROVIDED = 'required_data_is_not_provided'; // Не предоставлены необходимые данные для выполнения запроса
 
     const WEEK_DAYS = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
 }
