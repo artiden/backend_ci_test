@@ -14,6 +14,10 @@ class User_model extends CI_Emerald_Model {
     protected $email;
     /** @var string */
     protected $password;
+    /**
+     * @var string
+     */
+    protected $token;
     /** @var string */
     protected $personaname;
     /** @var string */
@@ -28,6 +32,10 @@ class User_model extends CI_Emerald_Model {
     protected $wallet_total_refilled;
     /** @var float */
     protected $wallet_total_withdrawn;
+    /**
+     * @var int
+     */
+    protected $likes;
     /** @var string */
     protected $time_created;
     /** @var string */
@@ -72,6 +80,20 @@ class User_model extends CI_Emerald_Model {
     {
         $this->password = $password;
         return $this->save('password', $password);
+    }
+
+    /**
+     * @return string
+     */
+    public function get_token()
+    {
+        return $this->token;
+    }
+    
+    public function set_token(string $token)
+    {
+        $this->token = $token;
+        return $this->save('token', $token);
     }
 
     /**
@@ -186,6 +208,24 @@ class User_model extends CI_Emerald_Model {
     {
         $this->wallet_total_withdrawn = $wallet_total_withdrawn;
         return $this->save('wallet_total_withdrawn', $wallet_total_withdrawn);
+    }
+
+    /**
+     * @return int
+     */
+    public function get_likes(): int
+    {
+        return $this->likes;
+    }
+
+    /**
+     * @param int $likes
+     * @return boolean
+     */
+    public function set_likes($likes)
+    {
+        $this->likes = $likes;
+        return $this->save('likes', $likes);
     }
 
     /**
@@ -354,7 +394,7 @@ class User_model extends CI_Emerald_Model {
      */
     public static function login(string $email, string $password): ?self
     {
-        //todo: exception выделить в отдельные классы. Например: InvalidEmailFormatException & InvalidCredentiasException...
+        //todo: exception выделить в отдельные классы. Например: InvalidEmailFormatException & InvalidCredentiasException... Да и вообще вынести в валидатор реквеста.
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new Exception('Invalid email format');
         }
@@ -368,14 +408,48 @@ class User_model extends CI_Emerald_Model {
             throw new Exception('Invalid email or password');
         }
 
-        return (new self())->set($data);
+        $user = (new self())
+        ->set($data);
+        $user->set_token(uniqid('', true));
+        return $user;
+    }
+
+    /**
+     * get authorized user information by token.
+     * 
+     * @param string $token
+     * @throws Exception
+     * @return self
+     */
+    public static function authToken(string $token): self
+    {
+        $userData = App::get_ci()->s->from(self::CLASS_TABLE)
+        ->where('token', $token)
+        ->one();
+
+        if (empty($userData)) {
+            throw new Exception('Invalid token');
+        }
+
+        return (new self())
+        ->set($userData);
     }
 
     /**
      * @return bool
      */
-    public static function is_logged()
+    public static function is_logged(?string $token = null)
     {
+        if (!is_null($token)) {
+            try {
+                $user = self::authToken($token);
+            } catch (Exception $e) {
+                return false;
+            }
+
+            return true;
+        }
+
         $steam_id = intval(self::get_session_id());
         return $steam_id > 0;
     }
@@ -401,6 +475,26 @@ class User_model extends CI_Emerald_Model {
         }
     }
 
+    /**
+     * Add money to user account.
+     * 
+     * @param int $userId
+     * @param float $amount
+     * @return bool
+     */
+    public static function addMoney(int $userId, float $amount): bool
+    {
+        $user = new self($userId);
+        // Тут бы нужно заюзать транзакции. Но в данной реализации, когда после каждого вызова set_xxx() вызывается save... не совсем понятно как это сделать.
+        $refilled = $user->get_wallet_total_refilled() + $amount;
+        $user->set_wallet_total_refilled($refilled);
+        $amount += $user->get_wallet_balance();
+        $user->set_wallet_balance($amount);
+        return true;
+    }
 
-
+    public function haveNoLikes()
+    {
+        return !$this->get_likes();
+    }
 }

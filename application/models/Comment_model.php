@@ -254,5 +254,16 @@ class Comment_model extends CI_Emerald_Model
         return $ret;
     }
 
+    public static function add(int $userId, int $postId, string $message): bool
+{
+        $data = [
+            'user_id' => $userId,
+            'assign_id' => $postId,
+            'text' => $message,
+        ];
 
+        return (new self())
+        ->create($data)
+        ? true : false;
+    }
 }

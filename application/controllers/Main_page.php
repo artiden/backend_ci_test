@@ -59,13 +59,15 @@ class Main_page extends MY_Controller
     }
 
 
-    public function comment($post_id,$message){ // or can be App::get_ci()->input->post('news_id') , but better for GET REQUEST USE THIS ( tests )
-
-        if (!User_model::is_logged()){
+    public function comment()
+    { // or can be App::get_ci()->input->post('news_id') , but better for GET REQUEST USE THIS ( tests )
+        $token = $this->input->get_post('token');
+        if (!User_model::is_logged($token)) {
             return $this->response_error(CI_Core::RESPONSE_GENERIC_NEED_AUTH);
         }
 
-        $post_id = intval($post_id);
+        $post_id = intval($this->input->get_post('post_id'));
+        $message = $this->input->get_post('message');
 
         if (empty($post_id) || empty($message)){
             return $this->response_error(CI_Core::RESPONSE_GENERIC_WRONG_PARAMS);
@@ -78,9 +80,51 @@ class Main_page extends MY_Controller
             return $this->response_error(CI_Core::RESPONSE_GENERIC_NO_DATA);
         }
 
+        $user = User_model::authToken($token);
+        // Честно говоря, это сделал бы через репозиторий.
+        if (!Comment_model::add($user->get_id(), $post_id, $message)) {
+            return $this->response_error(CI_Core::RESPONSE_GENERIC_TRY_LATER);
+        }
 
         $posts =  Post_model::preparation($post, 'full_info');
         return $this->response_success(['post' => $posts]);
+    }
+    
+    // В следующих 2-х методах хорошо бы сделать по ресту. типа post/1/like и comment/x/like. + не плохо бы подошла бы штука, как Polymorphic Relationships. Но это если нужно лайки вынести в отдельную таблицу и сохранять время, юзера, etc...
+    public function like_post()
+    {
+        $token = $this->input->get_post('token');
+
+        if (!User_model::is_logged($token)) {
+            return $this->response_error(CI_Core::RESPONSE_GENERIC_NEED_AUTH);
+        }
+
+        $user = User_model::authToken($token);
+        if ($user->haveNoLikes()) {
+            return $this->response_error(CI_Core::RESPONSE_GENERIC_TRY_LATER);
+        }
+
+        $postId = $this->input->get_post('post_id');
+        try {
+            $post = new Post_model($postId);
+        } catch (EmeraldModelNoDataException $e) {
+            return $this->response_error(CI_Core::RESPONSE_GENERIC_NO_DATA);
+        }
+
+        if (!Post_model::like($postId)) {
+            return $this->response_error(CI_Core::RESPONSE_GENERIC_TRY_LATER);
+        }
+        $user->set_likes($user->get_likes() - 1);
+
+        $posts =  Post_model::preparation($post, 'full_info');
+        return $this->response_success([
+            'post' => $posts,
+        ]);
+    }
+
+    public function like_comment()
+    {
+        //Все аналогично с предыдущим методом, только моделька другая.
     }
 
     public function login()
@@ -105,7 +149,8 @@ class Main_page extends MY_Controller
         Login_model::start_session($userId);
 
         return $this->response_success([
-            'user' => $userId,
+            'user_id' => $userId,
+            'token' => $user->get_token(),
         ]);
     }
 
@@ -116,9 +161,14 @@ class Main_page extends MY_Controller
         redirect(site_url('/'));
     }
 
-    public function add_money(){
-        // todo: add money to user logic
-        return $this->response_success(['amount' => rand(1,55)]);
+    public function add_money()
+    {
+        $userId = $this->input->get_post('user_id');
+        $amount = floatval($this->input->get_post('amount'));
+        User_model::addMoney($userId, $amount);
+        return $this->response_success([
+            'amount' => $amount,
+        ]);
     }
 
     public function buy_boosterpack(){
